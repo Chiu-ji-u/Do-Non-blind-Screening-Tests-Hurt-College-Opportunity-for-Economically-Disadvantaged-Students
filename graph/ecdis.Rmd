@@ -1,0 +1,1028 @@
+---
+title: "ecdis"
+output:
+  html_document: default
+  pdf_document: default
+date: "2022-12-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "H:/我的雲端硬碟/NAER/database/exam/經濟弱勢與考招參採比例/graph")
+
+library(data.table)
+library(tidyverse)
+library(rio)
+library(arsenal)
+library(haven)
+library(magrittr)
+library(scales)
+library(knitr)
+library(kableExtra)
+library(ggthemes)
+
+#adjust fonts
+library(showtext)
+view(font_files())
+font_add("notoSans", regular = "NotoSans-Regular.ttf", bold = "NotoSans-Bold.ttf")
+font_add("Arial Narrow", regular = "ARIALN.TTF", bold = "ARIALNB.TTF", italic = "ARIALNI.TTF", bolditalic = "ARIALNBI.TTF")
+showtext_auto()
+```
+
+```{r}
+see <- import("p_see_dep_update.dta") %>% 
+  mutate(up = str_detect(app_udep_rc2, "希望組|晨光組|興翼|成星|政星|旭日|揚帆|旋坤|向日葵|西灣|南星|璞玉|勵進|展翅|新芽|精進|飛揚|飛鳶|薪火|嘉星|展翅|揚鷹|翔飛|鯤鵬展翅"),
+         top_uni = str_detect(app_udep_rc2, "國立臺灣大學|國立成功大學|國立清華大學|國立交通大學|國立中央大學|國立陽明大學|國立中山大學|國立中興大學|國立臺灣科技大學|國立政治大學|國立臺灣師範大學|長庚大學"),
+         public = str_detect(app_udep_rc2, "國立|市立"))
+
+see_2 <- see %>% 
+  filter(up == 0) %>%
+  select(-up) %>%
+  filter(!(dep_id %in% c(138, 1011, 1260, 1732, 2346, 2367, 3135, 3142, 3577, 3703))) #No one applied for this university-department or passed the stage 1 selection.
+
+```
+
+```{r}
+see_2 %>% 
+  group_by(cyr) %>%
+  summarize(avg_see = mean(see),
+            sd_see = sd(see), 
+            n= n()) %>%
+  ggplot(aes(cyr, avg_see)) +
+  geom_point() +
+  geom_line() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 60), 
+        axis.title = element_text(size = 55),
+        axis.title.x = element_text(vjust = 0.2),
+        axis.title.y = element_text(vjust = 1),
+        axis.text = element_text(size = 60)) +
+  scale_x_continuous(limits = c(2011, 2021), breaks = c(2011, 2013, 2015, 2017, 2019, 2021)) +
+  scale_y_continuous(limits = c(40, 70)) +
+  scale_color_stata() +
+  labs(x = "Year", y = "Percentage of Non-Blind Screening Test (%)")
+
+ggsave("total.png", width = 9, height = 6)
+```
+
+```{r}
+see_2 %>%
+  mutate(uni_typ = case_when(top_uni == 1 ~ 0,
+                             top_uni == 0 & public == 1 ~ 1,
+                             top_uni == 0 & public == 0 ~ 2)) %>%
+  mutate(uni_typ = factor(uni_typ, labels = c("頂大", "公立非頂大", "私立非頂大"))) %>%
+  group_by(cyr, uni_typ) %>%
+  rename(大學類型 = uni_typ) %>%
+  summarize(avg_see = mean(see),
+            sd_see = sd(see),
+            n = n()) %>%
+  ggplot(aes(cyr, avg_see, color = 大學類型)) +
+  geom_point() +
+  geom_line() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 60), 
+        axis.title = element_text(size = 60), 
+        axis.title.x = element_text(vjust = 0),
+        axis.title.y = element_text(vjust = 1),
+        axis.text = element_text(size = 60),
+        legend.text = element_text(size = 48),
+        legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.box.spacing = unit(0.01, "npc")) +
+  scale_x_continuous(limits = c(2011, 2021), breaks = c(2011, 2013, 2015, 2017, 2019, 2021)) +
+  scale_y_continuous(limits = c(40, 70)) +
+  #scale_colour_brewer(palette = "Set1", name = "大學類型") +
+  scale_color_stata() +
+  labs(x = "年", y = "面試書審比例和 (%)")
+
+ggsave("uni_typ.png", width = 9, height = 6)
+```
+
+```{r}
+see_2 %>%
+  mutate(public = factor(-public, labels = c("Public University", "Private University"))) %>%
+  group_by(cyr, public) %>%
+  summarize(avg_see = mean(see),
+            sd_see = sd(see),
+            n = n()) %>%
+  ggplot(aes(cyr, avg_see, color = public)) +
+  geom_point() +
+  geom_line() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 60), 
+        axis.title = element_text(size = 50), 
+        axis.title.x = element_text(vjust = 0),
+        axis.title.y = element_text(vjust = 1),
+        axis.text = element_text(size = 60),
+        legend.text = element_text(size = 48),
+        legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.box.spacing = unit(0.01, "npc")) +
+  scale_x_continuous(limits = c(2011, 2021), breaks = c(2011, 2013, 2015, 2017, 2019, 2021)) +
+  scale_y_continuous(limits = c(40, 70)) +
+  scale_color_stata() +
+  labs(x = "Year", y = "Percentage of Non-Blind Screening Test (%)")
+
+ggsave("public.png", width = 9, height = 6)
+```
+
+```{r}
+see_2 %>%
+  mutate(top_uni = factor(top_uni, labels = c("Ordinary University", "Top University"))) %>%
+  group_by(cyr, top_uni) %>%
+  summarize(avg_see = mean(see),
+            sd_see = sd(see),
+            n = n()) %>%
+  ggplot(aes(cyr, avg_see, color = top_uni)) +
+  geom_point() +
+  geom_line() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 60), 
+        axis.title = element_text(size = 50), 
+        axis.title.x = element_text(vjust = 0),
+        axis.title.y = element_text(vjust = 1),
+        axis.text = element_text(size = 60),
+        legend.text = element_text(size = 48),
+        legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.box.spacing = unit(0.01, "npc")) +
+  scale_x_continuous(limits = c(2011, 2021), breaks = c(2011, 2013, 2015, 2017, 2019, 2021)) +
+  scale_y_continuous(limits = c(40, 70)) +
+  scale_color_stata() +
+  labs(x = "Year", y = "Percentage of Non-Blind Screening Test (%)")
+
+ggsave("top_uni.png", width = 9, height = 6)
+```
+
+```{r}
+#see_2 %>% filter(latest_moecd_scd2 == "")
+
+# turn to excel to fill the departments with missing codes 
+#export(see_2, "p_see.csv")
+
+#change the name of filled p_see.csv into p_see_filled.csv
+#import p_see_filled.csv
+#replace fullwidth parentheses with halfwidth ones
+#save as p_see_filled.dta
+see_filled <- import("p_see_filled.csv") %>% 
+  mutate(app_udep_rc2 = str_replace_all(app_udep_rc2, 
+                                        c("（" = "(", "）" = ")"))) %>%
+  rename(latest_moecd_scd2_filled = latest_moecd_scd2)
+
+#export(see_filled, "p_see_filled.dta")
+
+see_filled <- see_filled %>% 
+  mutate(b_fd = str_sub(latest_moecd_scd2_filled, 6, 7),
+         n_fd = str_sub(latest_moecd_scd2_filled, 6, 8),
+         d_fd = str_sub(latest_moecd_scd2_filled, 6, 9),
+         dd_fd = str_sub(latest_moecd_scd2_filled, 6, 10),
+         STEM = if_else(n_fd %in% c("051", "052", "053", "054", "061", "071", "072", "073"), 1, 0)) %>%
+  mutate(STEM = factor(-STEM, labels = c("STEM", "non-STEM")))
+```
+
+```{r}
+see_filled %>%
+  group_by(cyr, STEM) %>%
+  summarize(avg_see = mean(see),
+            sd_see = sd(see),
+            n = n()) %>%
+  ggplot(aes(cyr, avg_see, color = STEM)) +
+  geom_point() +
+  geom_line() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 60), 
+        axis.title = element_text(size = 50),
+        axis.title.x = element_text(vjust = 0),
+        axis.title.y = element_text(vjust = 1),
+        axis.text = element_text(size = 60),
+        legend.text = element_text(size = 48),
+        legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.box.spacing = unit(0.01, "npc")) +
+  scale_x_continuous(limits = c(2011, 2021), breaks = c(2011, 2013, 2015, 2017, 2019, 2021)) +
+  scale_y_continuous(limits = c(40, 70)) +
+  scale_color_stata() +
+  labs(x = "Year", y = "Percentage of Non-Blind Screening Test (%)")
+
+ggsave("stem.png", width = 9, height = 6)
+```
+
+```{r}
+see_bfd <- see_filled %>%
+  # mutate(uni_typ = case_when(top_uni == T ~ "頂大",
+  #                            top_uni == F & public == T ~ "公立非頂大",
+  #                            top_uni == F & public == F ~ "私立非頂大")) %>%  
+  group_by(cyr, b_fd) %>%
+  summarize(avg_see = mean(see),
+            sd_see = sd(see),
+            n = n(),
+            STEM = first(STEM)) %>%
+  ungroup() %>%
+  mutate(`Broad Field` = factor(as.numeric(b_fd), labels = c("Education", "Arts and Humanities", "Social Sciences, Journalism and Information", "Business, Administration and Law", "Natural Sciences, Mathematics and Statistics", "Information and Communication Technologies", "Engineering, Manufacturing and Construction", "Agriculture, Forestry, Fisheries and Veterinary", "Health and Welfare", "Services", "Others")))
+
+see_bfd %>%
+  ggplot(aes(cyr, avg_see, color = `Broad Field`)) +
+  geom_point() +
+  geom_line() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 55), 
+        axis.title = element_text(size = 45),
+        axis.title.x = element_text(vjust = 0.5),
+        axis.text.x = element_text(size = 32),
+        axis.text.y = element_text(size = 42),
+        legend.spacing.x = unit(0.15, "cm"),
+        legend.spacing.y = unit(0.3, "cm"),
+        legend.key.size = unit(0.005, "npc"),
+        legend.text = element_text(size = 24),
+        legend.title = element_text(size = 28),
+        legend.position = "right",
+        legend.box.margin = margin(r= 0, l = 0.1),
+        legend.box.spacing = unit(0.01, "npc")
+        ) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(limits = c(2011, 2021), breaks = c(2011, 2013, 2015, 2017, 2019, 2021)) +
+  scale_y_continuous(limits = c(26, 74)) +
+  #scale_colour_brewer(palette = "Spectral", name = "領域") +
+  #scale_colour_viridis_d(option = "turbo") +
+  scale_colour_stata() +
+  facet_wrap(~STEM) +
+  labs(x = "Year", y = "Percentage of Non-Blind Screening Test (%)")
+
+ggsave("broad_field_stem.png", width = 9, height = 6)
+```
+
+```{r}
+see_bfd %>%
+ #filter(領域 != "其他") %>%
+ #mutate(public = if_else(public == 1, "公立", "私立")) %>%
+  ggplot(aes(cyr, avg_see, color = 領域)) +
+  geom_point() +
+  geom_line() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 60), 
+        axis.title = element_text(size = 60),
+        axis.title.x = element_text(vjust = 0),
+        axis.title.y = element_text(vjust = 1),
+        axis.text = element_text(size = 60),
+        legend.spacing.x = unit(0.2, "cm"),
+        legend.spacing.y = unit(0.4, "cm"),
+        legend.key.size = unit(0.02, "npc"),
+        legend.text = element_text(size = 32),
+        legend.title = element_text(size = 44),
+        legend.position = "right",
+        legend.box.margin = margin(r= 0.1, l = 0.1),
+        legend.box.spacing = unit(0.01, "npc")
+        ) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(limits = c(2011, 2021), breaks = c(2011, 2013, 2015, 2017, 2019, 2021)) +
+  scale_y_continuous(limits = c(26, 74)) +
+  scale_colour_stata() +
+  labs(x = "年", y = "面試書審比例和 (%)")
+  #facet_wrap(~ public)
+
+ggsave("broad_field_r.png", width = 9, height = 6)
+```
+
+```{r}
+library(hrbrthemes)
+library(viridis)
+
+see_bfd <- see_bfd %>%
+  mutate(name2 = 領域)
+
+see_bfd %>%
+  ggplot(aes(cyr, avg_see)) +
+    geom_line(data = see_bfd %>% select(-領域), aes(group = name2), color = "black", size = 0.5, alpha = 0.5) +
+    geom_line(aes(color = 領域), color = "red", size = 0.5) +
+    scale_color_viridis(discrete = TRUE) +
+    theme_ipsum() +
+    theme(
+      plot.title = element_text(size = 300),
+      panel.grid = element_blank(),
+      #panel.grid.major.y = element_line(), 
+      text = element_text(size = 300), 
+      axis.title = element_text(size = 300)
+    ) +
+    scale_x_continuous(limits = c(100, 110), breaks = c(100, 103, 106, 109)) +
+    scale_y_continuous(limits = c(25, 80)) +
+    labs(x = "年", y = "面試書審比例和 (%)") +
+    facet_wrap(~領域, nrow = 3, ncol = 4)
+```
+
+```{r}
+see_nfd <- see_filled %>%
+  #mutate(uni_typ = case_when(top_uni == T ~ "頂大",
+                             #top_uni == F & public == T ~ "公立非頂大",
+                             #top_uni == F & public == F ~ "私立非頂大")) %>%
+  group_by(cyr, n_fd) %>%
+  summarize(avg_see = mean(see),
+            sd_see = sd(see),
+            n = n(),
+            STEM = first(STEM),
+            b_fd = first(b_fd)) %>%
+  ungroup() %>%
+  mutate(`Broad Field` = factor(as.numeric(b_fd), labels = c("Education", "Arts and Humanities", "Social Sciences, Journalism\n and Information", "Business, Administration\n and Law", "Natural Sciences, Mathematics\n and Statistics", "Information and Communication\n Technologies", "Engineering, Manufacturing\n and Construction", "Agriculture, Forestry,\n Fisheries and Veterinary", "Health and Welfare", "Services", "Others")),
+         `Narrow Field` = factor(as.numeric(n_fd), labels = c("Education", "Arts", "Humanities (except Languages)", "Languages", "Social and Behavioural Sciences", "Journalism and Information", "Business and Administration", "Law", "Biological and Related Sciences", "Environment", "Physical Sciences", "Mathematics and Statistics", "Information and Communication Technologies", "Engineering and Engineering Trades", "Manufacturing and Processing", "Architecture and Construction", "Agriculture", "Forestry", "Fisheries", "Veterinary", "Health", "Welfare", "Personal Services", "Hygiene and Occupational Health Services", "Security Services", "Transport Services", "Others")),
+         nfd_class = case_when(`Narrow Field` %in% c("Education", "Arts", "Social and Behavioural Sciences", "Business and Administration", "Biological and Related Sciences", "Information and Communication Technologies", "Engineering and Engineering Trades", "Agriculture", "Health", "Personal Services", "Others") ~ 1,
+                               `Narrow Field` %in% c("Humanities (except Languages)", "Journalism and Information", "Law", "Environment", "Manufacturing and Processing", "Forestry", "Welfare", "Hygiene and Occupational Health Services") ~ 2,
+                               `Narrow Field` %in% c("Languages", "Physical Sciences", "Architecture and Construction", "Fisheries", "Security Services") ~ 3,
+                               `Narrow Field` %in% c("Mathematics and Statistics", "Veterinary", "Transport Services") ~ 4))
+
+see_nfd %>%
+  ggplot(aes(cyr, avg_see, color = 學門, alpha = nfd_class)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25),
+        axis.title.x = element_text(size = 40, vjust = -0.05),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        legend.spacing.x = unit(0.2, "cm"),
+        legend.spacing.y = unit(0.2, "cm"),
+        legend.key.size = unit(0.01, "npc"),
+        legend.text = element_text(size = 25),
+        legend.position = "bottom",
+        legend.box.margin = margin(r = 2, l = 0, unit = "pt"),
+        legend.box.spacing = unit(0.003, "npc"),
+        strip.text.x = element_text(size = 20)) +
+  guides(color = guide_legend(ncol = 9, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(25, 90), breaks = c(30, 50, 70, 90)) +
+  labs(x = "年", y = "面試書審比例和 (%)") +
+  facet_wrap(~領域, nrow = 2) +
+  scale_alpha_continuous(range = c(0.7, 1), guide = "none")
+
+ggsave("nfd_1.png")
+```
+
+```{r}
+see_nfd %>%
+  #filter(學門 != "其他") %>%
+  ggplot(aes(cyr, avg_see, color = `Narrow Field`, alpha = nfd_class)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 22.5), 
+        axis.title.x = element_text(size = 40, vjust = 0),
+        axis.title.y = element_text(size = 44),
+        axis.text.x = element_text(size = 18),
+        axis.text.y = element_text(size = 28),
+        legend.spacing.x = unit(0.1, "cm"),
+        legend.spacing.y = unit(0.3, "cm"),
+        legend.key.size = unit(0.01, "npc"),
+        legend.text = element_text(size = 28),
+        legend.title = element_text(size = 32),
+        legend.position = "right",
+        legend.box.margin = margin(t = 0.5, r = 0, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 20, lineheight = 0.5)) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(limits = c(2011, 2021), breaks = c(2011, 2013, 2015, 2017, 2019, 2021)) +
+  scale_y_continuous(limits = c(25, 90), breaks = c(30, 50, 70, 90)) +
+  labs(x = "Year", y = "Percentage of Non-Blind Screening Test (%)") +
+  facet_wrap(~`Broad Field`, nrow = 2) +
+  scale_alpha_continuous(range = c(0.5, 1), guide = "none")
+
+ggsave("nfd_2.png", width = 12, height = 9)
+```
+
+```{r}
+see_nfd %>%
+  #filter(學門 != "其他") %>%
+  ggplot(aes(cyr, avg_see, color = 學門, alpha = nfd_class)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 30), 
+        axis.title.x = element_text(size = 40, vjust = -0.1),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 40),
+        axis.text.y = element_text(size = 40),
+        legend.spacing.x = unit(0.15, "cm"),
+        legend.spacing.y = unit(0.1, "cm"),
+        legend.key.size = unit(0.01, "npc"),
+        legend.text = element_text(size = 30),
+        legend.position = "bottom",
+        legend.box.margin = margin(t = 0.5, r = 0.5, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 15)) +
+  guides(color = guide_legend(nrow = 3, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(25, 90), breaks = c(30, 50, 70, 90)) +
+  labs(x = "年", y = "面試書審比例和 (%)") +
+  #facet_wrap(~領域, nrow = 2) +
+  scale_alpha_continuous(range = c(0.7, 1), guide = "none")
+
+ggsave("nfd_3.png")
+```
+
+
+```{r}
+#see_filled %>% filter(cyr == 2021, see <= 20)
+#see_filled %>% filter(cyr == 2021, see >= 80)
+see_filled %>% 
+  separate(app_udep_rc2, c("depcd", "schnm", "depnm"), "_") %>%
+  summarize(n = n_distinct(schnm, depnm))
+#n = 3753
+
+see_filled %>% 
+  separate(app_udep_rc2, c("depcd", "schnm", "depnm"), "_") %>%
+  separate(latest_moecd_scd2_filled, c("schcd_moe", "fd_cd"), "_") %>%
+  summarize(n = n_distinct(schcd_moe, depnm))
+#n = 3704
+```
+
+```{r}
+see_filled %>%
+  filter(see <= 20) %>%
+  mutate(cyr = cyr - 1911,
+         領域 = factor(as.numeric(b_fd), labels = c("教育", "藝術人文", "社科、新聞及圖資", "商管法律", "自然科學、數學及統計", "資通科技", "工程、製造及營建", "農林漁業及獸醫", "醫藥衛生社福", "服務", "其他"))) %>%
+  group_by(cyr, b_fd) %>%
+  summarize(small_n = n(),
+            領域 = first(領域)) %>%
+  ungroup() %>%
+  ggplot(aes(cyr, small_n, color = 領域)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40, vjust = -0.1),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        legend.spacing.x = unit(0.1, "cm"),
+        legend.spacing.y = unit(0.15, "cm"),
+        legend.key.size = unit(0.01, "npc"),
+        legend.text = element_text(size = 20),
+        legend.position = "right",
+        legend.box.margin = margin(t = 0, r = 0, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 30)) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(x = "年", y = "面試書審比例和小於等於 25% 校系數個數")
+```
+
+```{r}
+see_filled %>%
+  mutate(cyr = cyr - 1911,
+         領域 = factor(as.numeric(b_fd), labels = c("教育", "藝術人文", "社科、新聞及圖資", "商管法律", "自然科學、數學及統計", "資通科技", "工程、製造及營建", "農林漁業及獸醫", "醫藥衛生社福", "服務", "其他")),
+         small = if_else(see <= 25, 1, 0)) %>%
+  group_by(cyr, b_fd) %>%
+  summarize(small_p = mean(small),
+            領域 = first(領域)) %>%
+  ungroup() %>%
+  ggplot(aes(cyr, small_p, color = 領域)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40, vjust = -0.1),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        legend.spacing.x = unit(0.1, "cm"),
+        legend.spacing.y = unit(0.3, "cm"),
+        legend.key.size = unit(0.01, "npc"),
+        legend.text = element_text(size = 25),
+        legend.position = "right",
+        legend.box.margin = margin(t = 0, r = 0, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 30)) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(0, 0.5)) +
+  labs(x = "年", y = "面試書審比例和小於等於 25% 校系數占比")
+
+ggsave("small_bfd.png")
+```
+
+```{r}
+see_filled %>%
+  mutate(cyr = cyr - 1911,
+         領域 = factor(as.numeric(b_fd), labels = c("教育", "藝術人文", "社科、新聞及圖資", "商管法律", "自然科學、數學及統計", "資通科技", "工程、製造及營建", "農林漁業及獸醫", "醫藥衛生社福", "服務", "其他")),
+         學門 = factor(as.numeric(n_fd), labels = c("教育", "藝術", "人文", "語文", "社科", "新聞圖資", "商管", "法律", "生命科學", "環境", "物化地科", "數學統計", "資通科技", "工程", "製造加工", "建築營建", "農業", "林業", "漁業", "獸醫", "醫藥衛生", "社福", "餐旅民生", "衛生職衛", "安全服務", "運輸服務", "其他")),
+         small = if_else(see <= 25, 1, 0)) %>%
+  group_by(cyr, n_fd) %>%
+  summarize(small_p = mean(small),
+            領域 = first(領域),
+            學門 = first(學門)) %>%
+  ungroup() %>%
+  ggplot(aes(cyr, small_p, color = 學門)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40, vjust = -0.1),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        legend.spacing.x = unit(0.1, "cm"),
+        legend.spacing.y = unit(0.15, "cm"),
+        legend.key.size = unit(0.01, "npc"),
+        legend.text = element_text(size = 25),
+        legend.position = "bottom",
+        legend.box.margin = margin(t = 0, r = 0, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 22)) +
+  guides(color = guide_legend(nrow = 3, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(0, 1), breaks = c(0, 0.5, 1)) +
+  labs(x = "年", y = "面試書審比例和小於等於 25% 校系數占比") +
+  facet_wrap(~領域, nrow = 2)
+
+ggsave("small_nfd.png")
+```
+
+
+```{r}
+see_filled %>%
+  filter(see > 75) %>%
+  mutate(cyr = cyr - 1911,
+         領域 = factor(as.numeric(b_fd), labels = c("教育", "藝術人文", "社科、新聞及圖資", "商管法律", "自然科學、數學及統計", "資通科技", "工程、製造及營建", "農林漁業及獸醫", "醫藥衛生社福", "服務", "其他"))) %>%
+  group_by(cyr, b_fd) %>%
+  summarize(big_n = n(),
+            領域 = first(領域)) %>%
+  ungroup() %>%
+  ggplot(aes(cyr, big_n, color = 領域)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40, vjust = -0.1),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        legend.spacing.x = unit(0.1, "cm"),
+        legend.spacing.y = unit(0.15, "cm"),
+        legend.key.size = unit(0.01, "npc"),
+        legend.text = element_text(size = 20),
+        legend.position = "right",
+        legend.box.margin = margin(t = 0, r = 0, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 30)) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(0, 125), breaks = c(0, 25, 50, 75, 100, 125)) +
+  labs(x = "年", y = "面試書審比例和大於 75% 校系數個數")
+```
+
+```{r}
+see_filled %>%
+  mutate(cyr = cyr - 1911,
+         領域 = factor(as.numeric(b_fd), labels = c("教育", "藝術人文", "社科、新聞及圖資", "商管法律", "自然科學、數學及統計", "資通科技", "工程、製造及營建", "農林漁業及獸醫", "醫藥衛生社福", "服務", "其他")),
+         big = if_else(see > 75, 1, 0)) %>%
+  group_by(cyr, b_fd) %>%
+  summarize(big_p = mean(big),
+            領域 = first(領域)) %>%
+  ungroup() %>%
+  ggplot(aes(cyr, big_p, color = 領域)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40, vjust = -0.1),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        legend.spacing.x = unit(0.1, "cm"),
+        legend.spacing.y = unit(0.3, "cm"),
+        legend.key.size = unit(0.01, "npc"),
+        legend.text = element_text(size = 22),
+        legend.position = "right",
+        legend.box.margin = margin(t = 0, r = 0, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 30)) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(0, 0.5)) +
+  labs(x = "年", y = "面試書審比例和大於 75% 校系數占比")
+
+ggsave("big_bfd.png")
+```
+
+```{r}
+see_filled %>%
+  mutate(cyr = cyr - 1911,
+         領域 = factor(as.numeric(b_fd), labels = c("教育", "藝術人文", "社科、新聞及圖資", "商管法律", "自然科學、數學及統計", "資通科技", "工程、製造及營建", "農林漁業及獸醫", "醫藥衛生社福", "服務", "其他")),
+         學門 = factor(as.numeric(n_fd), labels = c("教育", "藝術", "人文", "語文", "社科", "新聞圖資", "商管", "法律", "生命科學", "環境", "物化地科", "數學統計", "資通科技", "工程", "製造加工", "建築營建", "農業", "林業", "漁業", "獸醫", "醫藥衛生", "社福", "餐旅民生", "衛生職衛", "安全服務", "運輸服務", "其他")),
+         big = if_else(see > 75, 1, 0)) %>%
+  group_by(cyr, n_fd) %>%
+  summarize(big_p = mean(big),
+            領域 = first(領域),
+            學門 = first(學門)) %>%
+  ungroup() %>%
+  ggplot(aes(cyr, big_p, color = 學門)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40, vjust = -0.1),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        legend.spacing.x = unit(0.1, "cm"),
+        legend.spacing.y = unit(0.15, "cm"),
+        legend.key.size = unit(0.01, "npc"),
+        legend.text = element_text(size = 25),
+        legend.position = "bottom",
+        legend.box.margin = margin(t = 0, r = 0, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 22)) +
+  guides(color = guide_legend(nrow = 3, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(0, 1), breaks = c(0, 0.5, 1)) +
+  labs(x = "年", y = "面試書審比例和大於 75% 校系數占比") +
+  facet_wrap(~領域, nrow = 2)
+
+ggsave("big_nfd.png")
+```
+```{r}
+see_filled %>%
+  mutate(cyr = cyr - 1911,
+         領域 = factor(as.numeric(b_fd), labels = c("教育", "藝術人文", "社科、新聞及圖資", "商管法律", "自然科學、數學及統計", "資通科技", "工程、製造及營建", "農林漁業及獸醫", "醫藥衛生社福", "服務", "其他")),
+         big = if_else(see > 25 & see <= 50, 1, 0)) %>%
+  group_by(cyr, b_fd) %>%
+  summarize(big_p = mean(big),
+            領域 = first(領域)) %>%
+  ungroup() %>%
+  ggplot(aes(cyr, big_p, color = 領域)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40, vjust = -0.1),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        legend.spacing.x = unit(0.1, "cm"),
+        legend.spacing.y = unit(0.3, "cm"),
+        legend.key.size = unit(0.01, "npc"),
+        legend.text = element_text(size = 22),
+        legend.position = "right",
+        legend.box.margin = margin(t = 0, r = 0, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 30)) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(x = "年", y = "面試書審比例和 25% ~ 50% 校系數占比")
+
+ggsave("50_bfd.png")
+```
+
+```{r}
+see_filled %>%
+  mutate(cyr = cyr - 1911,
+         領域 = factor(as.numeric(b_fd), labels = c("教育", "藝術人文", "社科、新聞及圖資", "商管法律", "自然科學、數學及統計", "資通科技", "工程、製造及營建", "農林漁業及獸醫", "醫藥衛生社福", "服務", "其他")),
+         學門 = factor(as.numeric(n_fd), labels = c("教育", "藝術", "人文", "語文", "社科", "新聞圖資", "商管", "法律", "生命科學", "環境", "物化地科", "數學統計", "資通科技", "工程", "製造加工", "建築營建", "農業", "林業", "漁業", "獸醫", "醫藥衛生", "社福", "餐旅民生", "衛生職衛", "安全服務", "運輸服務", "其他")),
+         big = if_else(see > 50 & see <= 75, 1, 0)) %>%
+  group_by(cyr, n_fd) %>%
+  summarize(big_p = mean(big),
+            領域 = first(領域),
+            學門 = first(學門)) %>%
+  ungroup() %>%
+  ggplot(aes(cyr, big_p, color = 學門)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40, vjust = -0.1),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        legend.spacing.x = unit(0.1, "cm"),
+        legend.spacing.y = unit(0.15, "cm"),
+        legend.key.size = unit(0.01, "npc"),
+        legend.text = element_text(size = 25),
+        legend.position = "bottom",
+        legend.box.margin = margin(t = 0, r = 0, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 22)) +
+  guides(color = guide_legend(nrow = 3, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(0, 1), breaks = c(0, 0.5, 1)) +
+  labs(x = "年", y = "面試書審比例和 25% ~ 50% 校系數占比") +
+  facet_wrap(~領域, nrow = 2)
+
+ggsave("big_nfd.png")
+```
+
+```{r}
+see_dfd <- see_filled %>%
+  group_by(cyr, d_fd) %>%
+  summarize(avg_see = mean(see),
+            sd_see = sd(see),
+            n = n(),
+            b_fd = first(b_fd),
+            n_fd = first(n_fd)) %>%
+  ungroup() %>%
+  mutate(cyr = cyr - 1911,
+         領域 = factor(as.numeric(b_fd), labels = c("教育", "藝術人文", "社科、新聞及圖資", "商管法律", "自然科學、數學及統計", "資通科技", "工程、製造及營建", "農林漁業及獸醫", "醫藥衛生社福", "服務", "其他")),
+         學門 = factor(as.numeric(n_fd), labels = c("教育", "藝術", "人文", "語文", "社科", "新聞圖資", "商管", "法律", "生命科學", "環境", "物化地科", "數學統計", "資通科技", "工程", "製造加工", "建築營建", "農業", "林業", "漁業", "獸醫", "醫藥衛生", "社福", "餐旅民生", "衛生職衛", "安全服務", "運輸服務", "其他")))
+  
+table1 <- import("table1.xlsx") %>%
+  mutate(學類 = factor(as.numeric(d_fd), labels = 學類))
+see_dfd <- see_dfd %>% left_join(table1)
+```
+
+```{r}
+see_dfd %>%
+  filter(b_fd %in% c("01", "02")) %>%
+  ggplot(aes(cyr, avg_see, color = 學類)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40, vjust = -0.1),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        legend.spacing.x = unit(0.1, "cm"),
+        legend.spacing.y = unit(0.15, "cm"),
+        legend.key.size = unit(0.01, "npc"),
+        legend.text = element_text(size = 20),
+        legend.position = "right",
+        legend.box.margin = margin(t = 0, r = 0, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 30)) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(15, 90), breaks = c(10, 30, 50, 70, 90)) +
+  labs(x = "年", y = "面試書審比例和 (%)") +
+  facet_wrap(~學門)
+
+ggsave("dfd_1.png")
+```
+
+
+```{r}
+see_dfd %>%
+  filter(b_fd %in% c("03", "04")) %>%
+  ggplot(aes(cyr, avg_see, color = 學類)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40, vjust = -0.1),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        legend.spacing.x = unit(0.1, "cm"),
+        legend.spacing.y = unit(0.15, "cm"),
+        legend.key.size = unit(0.005, "npc"),
+        legend.text = element_text(size = 20),
+        legend.position = "right",
+        legend.box.margin = margin(t = 0, r = 0, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 30)) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(30, 90), breaks = c(10, 30, 50, 70, 90)) +
+  labs(x = "年", y = "面試書審比例和 (%)") +
+  facet_wrap(~學門)
+
+ggsave("dfd_2.png")
+```
+
+```{r}
+see_dfd %>%
+  filter(b_fd %in% c("05", "06")) %>%
+  ggplot(aes(cyr, avg_see, color = 學類)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40, vjust = -0.1),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        legend.spacing.x = unit(0.1, "cm"),
+        legend.spacing.y = unit(0.15, "cm"),
+        legend.key.size = unit(0.005, "npc"),
+        legend.text = element_text(size = 20),
+        legend.position = "right",
+        legend.box.margin = margin(t = 0, r = 0, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 30)) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(30, 100), breaks = c(10, 30, 50, 70, 90)) +
+  labs(x = "年", y = "面試書審比例和 (%)") +
+  facet_wrap(~學門)
+
+ggsave("dfd_3.png")
+```
+
+
+```{r}
+see_dfd %>%
+  filter(b_fd %in% c("07", "08")) %>%
+  ggplot(aes(cyr, avg_see, color = 學類)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40, vjust = -0.1),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        legend.spacing.x = unit(0.1, "cm"),
+        legend.spacing.y = unit(0.15, "cm"),
+        legend.key.size = unit(0.01, "npc"),
+        legend.text = element_text(size = 20),
+        legend.position = "right",
+        legend.box.margin = margin(t = 0, r = 0, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 30)) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(30, 90), breaks = c(10, 30, 50, 70, 90)) +
+  labs(x = "年", y = "面試書審比例和 (%)") +
+  facet_wrap(~學門, nrow = 2)
+
+ggsave("dfd_4.png")
+```
+
+```{r}
+see_dfd %>%
+  filter(b_fd %in% c("09", "10", "99")) %>%
+  ggplot(aes(cyr, avg_see, color = 學類)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40, vjust = -0.1),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        legend.spacing.x = unit(0.1, "cm"),
+        legend.spacing.y = unit(0.15, "cm"),
+        legend.key.size = unit(0.01, "npc"),
+        legend.text = element_text(size = 20),
+        legend.position = "right",
+        legend.box.margin = margin(t = 0, r = 0, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 30)) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(25, 90), breaks = c(10, 30, 50, 70, 90)) +
+  labs(x = "年", y = "面試書審比例和 (%)") +
+  facet_wrap(~學門, nrow = 2)
+
+ggsave("dfd_5.png")
+```
+
+```{r}
+see_ddfd <- see_filled %>%
+  group_by(cyr, dd_fd) %>%
+  summarize(avg_see = mean(see),
+            sd_see = sd(see),
+            n = n(),
+            b_fd = first(b_fd),
+            n_fd = first(n_fd),
+            d_fd = first(d_fd)) %>%
+  ungroup() %>%
+  mutate(cyr = cyr - 1911,
+         領域 = factor(as.numeric(b_fd), labels = c("教育", "藝術人文", "社科、新聞及圖資", "商管法律", "自然科學、數學及統計", "資通科技", "工程、製造及營建", "農林漁業及獸醫", "醫藥衛生社福", "服務", "其他")),
+         學門 = factor(as.numeric(n_fd), labels = c("教育", "藝術", "人文", "語文", "社科", "新聞圖資", "商管", "法律", "生命科學", "環境", "物化地科", "數學統計", "資通科技", "工程", "製造加工", "建築營建", "農業", "林業", "漁業", "獸醫", "醫藥衛生", "社福", "餐旅民生", "衛生職衛", "安全服務", "運輸服務", "其他")))
+```
+
+```{r}
+see_ddfd %>%
+  filter(b_fd %in% c("99")) %>%
+  ggplot(aes(cyr, avg_see, color = dd_fd)) +
+  geom_point(size = 0.8) +
+  geom_path() +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40, vjust = -0.1),
+        axis.title.y = element_text(size = 40),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        legend.spacing.x = unit(0.1, "cm"),
+        legend.spacing.y = unit(0.15, "cm"),
+        legend.key.size = unit(0.01, "npc"),
+        legend.text = element_text(size = 20),
+        legend.position = "right",
+        legend.box.margin = margin(t = 0, r = 0, l = 0, unit = "cm"),
+        legend.box.spacing = unit(0.01, "npc"),
+        strip.text.x = element_text(size = 30)) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(limits = c(100, 110), breaks = c(101, 104, 107, 110)) +
+  scale_y_continuous(limits = c(0, 100), breaks = c(10, 30, 50, 70, 90)) +
+  labs(x = "年", y = "面試書審比例和 (%)") +
+  facet_wrap(~學門)
+```
+
+```{r}
+see_change_dep <- see_filled %>%
+  arrange(dep_id, cyr) %>%
+  group_by(dep_id) %>%
+  mutate(see_change_diff = see - lag(see)) %>%
+  ungroup(dep_id) %>%
+  drop_na(see_change_diff) %>%
+  mutate(see_change_b = if_else(see_change_diff != 0, 1, 0)) %>%
+  group_by(cyr) %>%
+  summarize(see_change_b = sum(see_change_b),
+            see_change_diff_mean = sum(see_change_diff) / see_change_b) %>%
+  left_join(dep_n_cyr) %>%
+  mutate(see_change_bp = 100 * see_change_b / dep_n)
+
+write_csv(see_change_dep, "see_change_dep.csv")
+
+dep_n_cyr <- see_filled %>% 
+  group_by(cyr) %>%
+  summarize(dep_n = n())
+
+ggplot(see_change_dep, aes(cyr, see_change_b)) +
+  geom_col(width = 0.6) +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40),
+        axis.title.y = element_text(size = 34),
+        axis.text.x = element_text(size = 36),
+        axis.text.y = element_text(size = 36)) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(breaks = c(2012, 2015, 2018, 2021)) +
+  scale_y_continuous(limits = c(0, 400), breaks = c(0, 100, 200, 300, 400)) +
+  labs(x = "Year", y = "Number of Departments Changing Percentage of Non-Blinding Screening Test")
+
+ggsave("see_change_b.png", width = 9, height = 6)
+
+ggplot(see_change_dep, aes(cyr, see_change_bp)) +
+  geom_col(width = 0.6) +
+  theme_bw() +
+  theme(panel.grid.major.y = element_line(), 
+        text = element_text(size = 25), 
+        axis.title.x = element_text(size = 40),
+        axis.title.y = element_text(size = 30),
+        axis.text.x = element_text(size = 36),
+        axis.text.y = element_text(size = 36)) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE)) +
+  scale_x_continuous(breaks = c(2012, 2015, 2018, 2021)) +
+  scale_y_continuous(limits = c(0, 20), breaks = c(0, 5, 10, 15, 20)) +
+  labs(x = "Year", y = "Percentage of Departments Changing Percentage of Non-Blinding Screening Test (%)")
+
+ggsave("see_change_bp.png", width = 9, height = 6)
+```
+```{r}
+see_dep <- see_filled %>%
+  arrange(dep_id) %>%
+  group_by(dep_id) %>%
+  mutate(see_change_diff = see - lag(see),
+         see_change_b = if_else(see_change_diff != 0, 1, 0)) %>%
+  #summarize(see = mean(see),
+  #          see_change_diff = mean(see_change_diff, na.rm = T),
+  #          see_change_b = sum(see_change_b, na.rm = T)) %>%
+  ungroup(dep_id) %>%
+  group_by(cyr) %>%
+  summarize(see_mean = round(mean(see), digits = 4),
+            see_sd = round(sd(see), digits = 4),
+            see_min = min(see),
+            see_max = max(see),
+            see_change_diff_mean = round(mean(see_change_diff, na.rm = T), digits = 4),
+            see_change_diff_sd = round(sd(see_change_diff, na.rm = T), digits = 4),
+            see_change_diff_min = min(see_change_diff, na.rm = T),
+            see_change_diff_max = max(see_change_diff, na.rm = T))
+
+write_csv(see_dep, "see_dep.csv")
+
+see_change_n <- see_filled %>%
+  arrange(dep_id) %>%
+  group_by(dep_id) %>%
+  mutate(see_change_diff = see - lag(see),
+         see_change_b = if_else(see_change_diff != 0, 1, 0)) %>%
+  summarize(see_change_b = sum(see_change_b, na.rm = T)) %>%
+  summarize(see_change_b_mean = mean(see_change_b),
+            see_change_b_sd = sd(see_change_b, na.rm = T),
+            see_change_b_min = min(see_change_b, na.rm = T),
+            see_change_b_max = max(see_change_b, na.rm = T))
+```
+
